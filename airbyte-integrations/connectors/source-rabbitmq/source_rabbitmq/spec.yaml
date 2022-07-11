@@ -3,10 +3,66 @@ connectionSpecification:
   $schema: http://json-schema.org/draft-07/schema#
   title: Rabbitmq Spec
   type: object
-  required:
-    - fix-me
+  required: ["hostname", "exchange", "routing_key"]
   additionalProperties: false
   properties:
-    fix-me:
+    name:
+      type: string  
+      description: The connection's name.
+    hostname:
       type: string
-      description: describe me
+      title: Hostname
+      order: 0
+      description: The RabbitMQ host name.
+    port:
+      type: integer
+      title: Port
+      order: 1
+      description: The RabbitMQ port.
+      default: 5672
+    virtual_host:
+      type: string
+      title: Virtual Host
+      order: 2
+      description: The RabbitMQ virtual host name.
+      default: "/"
+    username:
+      type: string
+      title: Username
+      order: 3
+      description: The RabbitMQ username to connect with.
+      default: guest
+    password:
+      type: string
+      title: Password
+      order: 4
+      description: The RabbitMQ password to connect with.
+      default: guest
+    exchange:
+      type: string
+      title: From Exchange
+      order: 5
+      description: The exchange to connect to.
+    routing_key:
+      type: string
+      title: Routing Key
+      order: 6
+      description: The routing key to accept.
+    batch_size:
+      type: integer
+      title: Batch Size
+      order: 7
+      description: The number of messages to get from the queue in a single read operation.
+      default: 100
+    # prefetch_count:
+    #   type: integer
+    #   description: The RabbitMQ consumer prefetch count.
+    #   default: 10
+    # max_length_bytes:
+    #   type: integer
+    #   description: The maximum size of the stream in bytes.
+    #   default: 1000000
+    # max_segment_size_bytes:
+    #   type: integer
+    #   description: "Unit: bytes. A stream is divided up into fixed size segment files on disk. This setting controls the size of these."
+    #   default: 1000

@@ -4,8 +4,12 @@
 
 
 import json
+import traceback
+from turtle import st
+import uuid
+from pika import ConnectionParameters, PlainCredentials, BlockingConnection
 from datetime import datetime
-from typing import Dict, Generator
+from typing import Dict, Generator, Mapping
 
 from airbyte_cdk.logger import AirbyteLogger
 from airbyte_cdk.models import (
@@ -19,9 +23,25 @@ from airbyte_cdk.models import (
     Type,
 )
 from airbyte_cdk.sources import Source
+from urllib3 import Retry
 
 
 class SourceRabbitmq(Source):
+    
+    def _get_client(self, config: Mapping):
+        """Construct client"""
+        username = config['username']
+        password = config['password']
+        hostname = config['hostname']
+        port = config['port']
+        virtual_host = config['virtual_host']
+        return BlockingConnection(ConnectionParameters(host=hostname,
+                                                       port=port,
+                                                       virtual_host=virtual_host,
+                                                       credentials=PlainCredentials(username=username, password=password),
+                                                       ))
+
+    
     def check(self, logger: AirbyteLogger, config: json) -> AirbyteConnectionStatus:
         """
         Tests if the input configuration can be used to successfully connect to the integration
@@ -33,11 +53,11 @@ class SourceRabbitmq(Source):
         the properties of the spec.yaml file
 
         :return: AirbyteConnectionStatus indicating a Success or Failure
-        """
+        """     
         try:
-            # Not Implemented
-
-            return AirbyteConnectionStatus(status=Status.SUCCEEDED)
+            logger.debug(f"Checking access to RabbitMQ with config: {config}")
+            with self._get_client(config) as conn:
+                return AirbyteConnectionStatus(status=Status.SUCCEEDED)
         except Exception as e:
             return AirbyteConnectionStatus(status=Status.FAILED, message=f"An exception occurred: {str(e)}")
 
@@ -94,12 +114,46 @@ class SourceRabbitmq(Source):
 
         :return: A generator that produces a stream of AirbyteRecordMessage contained in AirbyteMessage object.
         """
-        stream_name = "TableName"  # Example
-        data = {"columnName": "Hello World"}  # Example
-
-        # Not Implemented
-
-        yield AirbyteMessage(
-            type=Type.RECORD,
-            record=AirbyteRecordMessage(stream=stream_name, data=data, emitted_at=int(datetime.now().timestamp()) * 1000),
-        )
+        stream_name = config['name']
+        exchange = config['exchange']
+        routing_key = config['routing_key']
+        # prefetch_count = int(config['prefetch_count'])
+        queue_name = f'airbyte-{stream_name}-{uuid.uuid4()}'
+        
+        batch_size = config['batch_size']
+        try:
+            with self._get_client(config) as conn:
+                with conn.channel() as channel:
+                    # channel.basic_qos(prefetch_count=prefetch_count)
+                    channel.queue_declare(queue=queue_name, durable=True, auto_delete=False, exclusive=False,
+                    #                       arguments={
+                    #     'x-queue-type': 'stream', 
+                    #     'x-max-length-bytes': int(config['max_length_bytes']),
+                    #     'x-stream-max-segment-size-bytes': int(config['max_segment_size_bytes'])
+                    # }
+                                          )
+                    channel.queue_bind(queue=queue_name, exchange=exchange, routing_key=routing_key)
+                    
+                    # def _on_message(channel, method, properties, body):
+                    #     logger.info(f"Got a new message! {method.delivery_tag}")
+                    #     count+=1
+                    #     if count == 10:
+                    #         channel.stop_consuming()
+                    #     channel.basic_ack(method.delivery_tag)
+                        
+                    # channel.basic_consume(queue=queue_name, on_message_callback=_on_message,arguments={'x-stream-offset':'next'})
+                    # channel.start_consuming()
+                    method, properties, body = channel.basic_get(queue=queue_name)
+                    count = 0
+                    while body is not None and count < batch_size:
+                        yield AirbyteMessage(
+                            type=Type.RECORD,
+                            record=AirbyteRecordMessage(stream=stream_name, data={"body": body}, emitted_at=int(datetime.now().timestamp()) * 1000),
+                        )
+                        channel.basic_ack(method.delivery_tag)
+                        count += 1
+                        method, properties, body = channel.basic_get(queue=queue_name)
+        except Exception as err:
+            reason = f"Failed to read data of {stream_name}: {repr(err)}\n{traceback.format_exc()}"
+            logger.error(reason)
+            raise err            

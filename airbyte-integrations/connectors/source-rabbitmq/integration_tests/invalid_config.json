@@ -1,3 +1,11 @@
 {
-  "todo-wrong-field": "this should be an incomplete config file, used in standard tests"
+  "name": "test.invalid",
+  "hostname": "test.invalid",
+  "port": 56724,
+  "virtual_host": "test.invalid",
+  "username": "test.invalid",
+  "password": "test.invalid",
+  "routing_key": "test.invalid",
+  "exchange": "test.invalid",
+  "batch_size": 10
 }

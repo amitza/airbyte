@@ -7,11 +7,13 @@ from setuptools import find_packages, setup
 
 MAIN_REQUIREMENTS = [
     "airbyte-cdk~=0.1.56",
+    "pika~=1.3.0"
 ]
 
 TEST_REQUIREMENTS = [
     "pytest~=6.1",
     "source-acceptance-test",
+    "testcontainers[rabbitmq]~=3.6.0"
 ]
 
 setup(

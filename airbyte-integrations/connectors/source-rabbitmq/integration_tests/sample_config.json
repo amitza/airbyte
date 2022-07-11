@@ -1,3 +1,11 @@
 {
-  "fix-me": "TODO"
+  "name": "test",
+  "hostname": "localhost",
+  "port": 5672,
+  "virtual_host": "/",
+  "username": "airbyte",
+  "password": "airbyte",
+  "routing_key": "test_queue",
+  "exchange": "test_exchange",
+  "batch_size": 10
 }
